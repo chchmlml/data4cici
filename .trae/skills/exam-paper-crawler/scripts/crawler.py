@@ -154,10 +154,38 @@ def extract_all_papers(start_url, page_range=None, page_format=None):
     seen_urls = set()
     
     # 确定要爬取的页面范围
-    if page_range:
+    if page_range and page_format:
         # 解析页面范围，如 "1-99"
         start_page, end_page = map(int, page_range.split('-'))
         print(f"使用自定义分页范围: {start_page}-{end_page}")
+        print(f"使用自定义分页格式: {page_format}")
+        
+        # 爬取所有页面，包括第一页
+        for page_num in range(start_page, end_page + 1):
+            page_url = f"{start_url.rstrip('/')}/{page_format.replace('{page}', str(page_num))}"
+            print(f"正在爬取第{page_num}页: {page_url}")
+            
+            # 获取分页内容
+            page_html = fetch_html(page_url)
+            if not page_html:
+                continue
+            
+            # 提取当前分页的试卷
+            page_papers = extract_papers(page_html, start_url)
+            all_papers.extend(page_papers)
+            
+            # 避免爬取过快
+            time.sleep(1)
+        
+        # 去重
+        unique_papers = []
+        seen_paper_urls = set()
+        for paper in all_papers:
+            if paper['url'] not in seen_paper_urls:
+                seen_paper_urls.add(paper['url'])
+                unique_papers.append(paper)
+        
+        return unique_papers
     else:
         # 自动检测页面范围
         print(f"正在爬取第1页: {start_url}")
@@ -296,7 +324,7 @@ def main():
     print(f"开始爬取试卷信息...")
     print(f"目标网站: {target_url}")
     
-    papers = extract_all_papers(target_url)
+    papers = extract_all_papers(target_url, args.page_range, args.page_format)
     if not papers:
         print("未找到任何试卷信息")
         return
